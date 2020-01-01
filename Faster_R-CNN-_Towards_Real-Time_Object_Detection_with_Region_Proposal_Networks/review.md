@@ -34,7 +34,7 @@
 - Region Proposal Network (RPN)은 임의 크기의 이미지를 입력으로 갖고 직사각형의 object proposal들과 이들의 objectness score들을 출력으로 갖는다.
 - 이 과정을 fully-convolutional network로.
 
-![Figure1](/Users/starlett/codes/paper_review/Faster_R-CNN-_Towards_Real-Time_Object_Detection_with_Region_Proposal_Networks/Figure1.png)
+![figure1](figure1.png)
 
 - Region proposal 생성을 위해, 가장 마지막으로 공유되는 conv layer에서 나온 feature map 위에 작은 네트워크를 둔다.
 - 이 네트워크는 입력으로 들어온 feature map의 ![](https://latex.codecogs.com/svg.latex?n\times{n}) spatial window 에 대해 fully connected. (논문에서 ![](https://latex.codecogs.com/svg.latex?n=3))
@@ -75,7 +75,7 @@
 
 - Regression을 위해 네 좌표를 anchor에 대해 매개변수화한다. 
 
-![](formula1.png)
+![formula1](formula1.png)
 
 - ![](https://latex.codecogs.com/svg.latex?k)개의 regressor가 weight값을 모두 따로 가진다.
 
@@ -109,7 +109,9 @@
 
 ### Implementation Details
 
-
+- 전 과정에서 single-scale 이미지들만 사용했음. 이미지의 짧은 쪽이 600픽셀이 되도록 rescale함.
+- 이유는 multi-scale feature 추출이 정확도를 올릴 수는 있으나 속도-정확도 trade-off에서 별로 좋지 않았다. 
+- Anchor에 대해서는 128^2, 256^2, 512^2 픽셀의 세 크기를 사용했고, 1:1, 1:2, 2:1이라는 세 비율을 사용했다. 
 
 ## 4. Experiments
 
