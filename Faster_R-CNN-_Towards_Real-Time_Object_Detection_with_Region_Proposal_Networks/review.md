@@ -73,7 +73,7 @@
   - ![](https://latex.codecogs.com/svg.latex?L_{cls})는 object인지 아닌지에 대한 log loss.
   - ![](https://latex.codecogs.com/svg.latex?L_{reg}(t_i,t_i^*)=R(t_i-t_i^*)). ![](https://latex.codecogs.com/svg.latex?R)은 Fast R-CNN에서 사용된 smooth L1 함수다.
 
-- Regression을 위해 네 좌표를 anchor에 대해 매개변수화한다. 
+- Regression을 위해 네 좌표를 anchor에 대해 매개변수화한다. 왜 이런 짓을 하는지는 [R-CNN 논문](https://www.cv-foundation.org/openaccess/content_cvpr_2014/papers/Girshick_Rich_Feature_Hierarchies_2014_CVPR_paper.pdf)에 나와 있다. 
 
 ![formula1](formula1.png)
 
@@ -110,9 +110,73 @@
 ### Implementation Details
 
 - 전 과정에서 single-scale 이미지들만 사용했음. 이미지의 짧은 쪽이 600픽셀이 되도록 rescale함.
-- 이유는 multi-scale feature 추출이 정확도를 올릴 수는 있으나 속도-정확도 trade-off에서 별로 좋지 않았다. 
-- Anchor에 대해서는 128^2, 256^2, 512^2 픽셀의 세 크기를 사용했고, 1:1, 1:2, 2:1이라는 세 비율을 사용했다. 
+  - multi-scale feature 추출이 정확도를 올릴 수는 있으나 속도-정확도 trade-off에서 별로 좋지 않다.
+- Anchor에 대해서는 128^2, 256^2, 512^2 픽셀의 세 크기를 사용했고, 1:1, 1:2, 2:1의 세 비율을 사용했다. 
+  - 여기서 짚고 넘어가야 할 것은, receptive field보다 큰 anchor box를 proposal에 사용할 수도 있다는 점. 즉, 지금 보고 있는 부분이 커다란 object의 중심부라고 추론할 수도 있다.
+  - 이렇게 하면 multi-scale feature나 multi-scale sliding window를 필요로 하지 않게 되어 런타임을 줄여 준다.
+- 이미지 경계를 지나가는(cross-boundary) anchor들은 training 단계에서 무시했다. 
+  - 이들을 포함하면 오류가 많아지고 training이 converge하지 않는다.
+  - 그러나 test 단계에서는 제한을 두지 않았다.
+- 어떤 proposal들은 크게 겹칠 수도 있다.
+  - cls 점수 기반으로 non-maximum suppression (NMS) 을 적용했다. IoU = 0.7.
+  - proposal의 수를 크게 감소시키면서도 정확도는 유지했다.
 
 ## 4. Experiments
 
+- Pascal VOC 2007과 2012 detection benchmark에서 평가했다. 각각 5k개의 trainval과 test 이미지가 있으며 20개의 object 카테고리가 있음. 
+- ImageNet pre-trained network로는 ZF net과 VGG-16 model 사용.
+- 주요 지표로 mean Average Precision (mAP) 사용.
+
+![table1](table1.png)
+
+- Table 1의 위쪽은 Fast R-CNN에 다양한 방법을 적용했을 때의 결과이다. 이 결과들은 ZF net을 사용했다.
+- Selective Search (SS)나 EdgeBoxes(EB)에 비해 mAP도 높게 나오고 (59.9%) proposal의 수도 크게 감소했다. 
+- 속도도 더 빨랐는데, 첫째로 conv 연산을 공유했기 때문이고, 둘째로 proposal이 적어 region-wise fc 비용이 감소했기 때문이다.
+
+#### Ablation Experiments
+
+- 먼저, RPN과 Fast R-CNN이 conv layer들을 공유하는 것의 효과에 대해 살펴봤다.
+  - 4-step training 과정 중 두 번째 과정 이후에서 멈춘 뒤, 분리된 네트워크를 사용했더니 결과가 살짝 나빠졌다. (Table 1에서 RPN+ZF, unshared. 58.7%)
+  - 이유는 세 번째 단계에서 detector-tuned feature들이 RPN을 fine-tune하는 과정에서 proposal quality가 좋아지기 때문.
+- Fast R-CNN을 학습시킬 때 RPN의 영향을 배제해 봤다.
+  - 2k개의 SS proposal과 ZF net으로 Fast R-CNN을 학습시켰다. 
+  - 그런 후 test 단계에서는 이 detector를 고정시켜 놓고 RPN proposal (300개)을 사용하도록 했다.
+  - 이 경우 training과 testing proposal 간의 inconsistency로 인해 성능이 약간 감소했다. (56.8%)
+  - 이 뒤로 나오는 모든 abalation experiment들은 이것을 baseline으로 한다.
+- 가장 점수가 높은 100개의 proposal만 사용했을 때도 괜찮은 결과(55.1%)가 나왔다. 점수가 높은 proposal들이 꽤 정확하다는 뜻.
+- 또, NMS를 사용하지 않았을 때와 비슷한 정확도(55.2%)를 보였다. NMS가 정확도와의 타협 없이도 proposal의 수를 효과적으로 줄인다는 것을 확인할 수 있다.
+- 이번에는 test-time에서 cls와 reg을 번갈아 꺼 봄으로써, 각 output의 역할에 대해 조사했다.
+  - cls을 제거했을 때는 NMS/ranking을 사용할 수 없으므로 region들 중 N개를 랜덤으로 샘플링했다.
+  - N=1k에서는 별 차이가 없었지만(55.8%), N=100에서 크게 감소(44.6%)했다.
+  - 즉, cls 점수가 꽤나 큰 역할을 한다.
+  - 또, reg layer를 제거했더니 (proposal은 anchor box를 그대로 사용) mAP가 52.1%로 떨어졌다.
+  - 즉, anchor box만으로는 정확한 detection을 수행하기 어렵다.
+- ZF net 대신 VGG net을 쓰니 mAP가 56.8% -> 59.2%로 올라갔다.
+
+#### Detection Accuracy and Running Time of VGG-16
+
+- Proposal과 detection에 대해 VGG-16을 사용했다.
+- Unshared 버전에서는 SS 버전보다 약간 더 높은 결과(66.9% -> 68.5%)를 보였다. RPN+VGG가 생성한 proposal이 SS보다 더 정확하기 때문.
+- Shared 버전에서는 더욱 좋은 성능을 내, VOC 2007 테스트셋에서는 73.2%까지, 2012에서는 70.4%의 mAP를 얻을 수 있었다.
+
+- VGG-16 기준, 전체 시스템이 동작하는 데 198ms밖에 안 걸렸는데 그마저도 RPN의 연산은 그 중 겨우 10ms밖에 되지 않는다. Proposal의 수가 적어 region-wise 연산도 SS에 비해 더 빠르게 수행한다.
+
+#### Analysis of Recall-to-IoU
+
+![figure 2](figure2.png)
+
+- 여러 가지 IoU 비율을 가지고 recall을 비교해 봤는데, 관련 연구들에서 Recall-to-IoU metric은 정확도에 큰 영향을 주지 않음이 밝혀졌으므로 그냥 분석 용도로 비교해 봤다.
+- Proposal의 수가 적을수록 다른 방법들(SS, EB)과의 격차가 크게 벌어졌다. 앞서 살펴봤듯 이는 CPN의 cls 점수 덕분이다.
+
+#### One-Stage Detection vs. Two-Stage Proposal + Detection
+
+- [OverFeat](https://arxiv.org/pdf/1312.6229)에서도 conv feature map 위에서 sliding window 방식으로 작동하는 regressor와 classifier라는 개념을 제안했다.
+- 그러나 OverFeat은 *one-stage, class-specific*한 방식이고 이 논문이 제안한 방식은 *two-stage cascade* 방식. (proposal은 class-agnostic이고, detection만 class-specific)
+- OverFeat에서는 region-wise feature가 하나의 sliding window에서 나오며, 이 feature들을 가지고 object의 위치와 종류를 동시에 결정한다.
+- RPN에서는 3x3 정사각형 sliding window를 사용하며, 서로 다른 크기와 종횡비를 가진 anchor에 상대적인 proposal을 생성한다.
+- 두 방식 모두 sliding window를 사용하기는 하지만, RPN은 단지 proposal의 제안만을 수행하고, detector가 region-wise feature를 pooling한다.
+- OverFeat 시스템을 에뮬레이트해서 one-stage Fast R-CNN을 만들어서 실험해 본 결과, 정확도와 속도 모두 two-stage가 앞섰다.
+
 ## 5. Conclusion
+
+- Region Proposal Network, RPN의 도입으로 빠르고 정확한 region proposal의 생성이 가능해졌다. 
