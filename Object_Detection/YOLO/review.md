@@ -252,6 +252,5 @@
 - YOLO라는 object detection을 위한 통합된 네트워크를 도입함.
 - 구성이 단순하며 full image로부터 바로 학습시킬 수 있음.
 - Classifier 기반의 접근법과는 달리 detection에 대응되는 loss 함수를 사용했고 전체 모델이 다같이 학습함. 
-
 - Fast YOLO는 가장 빠른 일반 목적의 object detector이며, YOLO는 실시간 detector 중 가장 뛰어남.
 - YOLO는 또 새로운 domain에도 잘 일반화되므로, 빠르고 robust한 object detection이 필요한 곳에 적용되기 이상적.
