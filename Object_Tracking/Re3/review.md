@@ -112,22 +112,114 @@
 
 #### Skip Connections
 
+- Conv net은 hierarchical structure를 가지고 있어, 앞쪽에서는 low level feature, 뒤쪽에서는 high level feature를 뽑아낸다는 특징을 가진다.
+  - 비슷한 물체들을 구분하기 위해서는 low level과 high level feature들이 모두 필요하므로 skip connection을 두었다. 
+- skip connection의 output과 final output이 concat된 다음 fc layer로 들어간다. 
+
 ### B. Recurrent Specifications
+
+- 보통 recurrent network는 feed-forward network에 비해 학습시키기 더 어렵다. 
+  - Converge하는 데 더 오래 걸리고, 선택해야 할 hyperparameter의 수도 더 많기 때문. 
+- 여기서는 recurrent network를 어떻게 tracking에 써먹었는지를 설명한다.
+- 또, 네트워크를 더 빨리 수렴시키면서도 좋은 성능을 내도록 하는 학습 기법들을 설명한다. 
 
 #### Recurrent Structure
 
+- Two-layer, factored LSTM (visual feature들이 두 layer들 모두에 들어감) 에 peephole connection을 더한 것을 사용했다. 
+  - 이게 one-layer보다 더 잘 작동했다. 
+- Object의 모양이 바뀜에 따라 output과 cell state vector가 바뀐다. 
+  - 이 embedding은 비디오가 진행함에 따라 서서히 바뀌지만, occlusion이 발생할 때는 크게 바뀌지 않는다.
+
 #### Network Outputs
+
+- 두 번째 LSTM의 출력이 fc layer로 들어가게 되며, 이 fc layer는 object box를 나타내는 네 값을 내놓는다.
 
 #### Unrolling During Training
 
+- 앞서 말했듯, recurrent network는 feed-forward network에 비해 수렴하는 데 더 많은 iteration을 필요로 한다. 
+  - 왜냐면 input들이 sequential하게 들어온 다음 하나 또는 여러 개의 output들과 loss들이 생기기 때문.
+  - 이것은 loss의 전파가 매우 복잡함을 의미한다. 
+- 다행히도 tracking은 각각의 input이 중간 결과에 바로 대응된다. 
+  - 따라서 적은 RNN unroll을 통해 네트워크를 학습시키다가, 점차 unroll의 크기를 늘려 나가는 방식의 학습이 가능하다. 
+  - 짧은 unroll을 사용하지 않으면 네트워크의 학습 시간이 지수적으로 더 길어지거나 아예 수렴하지 않게 될 수도 있다.
+  - loss가 점점 안정됨에 따라 unroll의 크기는 두 배로 늘리고 mini-batch의 크기는 반으로 줄임.
+    - 각각 2, 64로 시작해 점차 32, 4까지.
+
 #### Learning to Fix Mistakes
+
+- Recurrent network는 주로 네트워크 스스로의 예측보다는 ground truth output을 사용하는 방식으로 학습시킨다. 
+  - 그러나 네트워크에게 매번 ground-truth crop을 주게 되면, test time에 방황하게 되고 object를 track하는 데 실패한다. 
+- 이러한 현상을 막기 위해 학습 초기에는 ground truth crop을 주지만, 점점 네트워크가 스스로 예측한 crop을 사용하도록 유도한다. 
+  - unroll의 크기를 두 배로 늘릴 때마다 predicted crop을 사용할 확률을 0.25 -> 0.5 -> 0.75로 늘려 간다. 
 
 ### C. Training Procedure
 
+- 네트워크를 학습시킬 때 실제 데이터와 합성 데이터를 모두 사용하도록 했다.
+  - 다양한 object type에 대해서 잘 작동하도록 하기 위해서. 
+
 #### Training from Video Sequences
+
+- Re3을 두 개의 큰 object tracking 데이터셋에서 학습시켰다. 
+- ILSVRC 2016 Object Detection from Video dataset (Imagenet Video)
+  - 매우 큰 데이터셋이지만 30개의 object category들밖에 없다. 
+- Amsterdam Library of Ordinary Videos 300+ (ALOV)
+  - 이 데이터셋의 각 비디오들에는 하나의 object만 존재.
 
 #### Training from Synthetic Sequences
 
+- 최근 많은 연구들에서 학습 데이터를 시뮬레이션이나 합성 데이터를 이용해 보충하고 있다.
+- Object detection in iamge 데이터셋이 굉장히 많고 다양하기 때문에, 이를 이용해 고정된 이미지로 합성 비디오를 만들었다. 
+  - 전체 이미지 영역에서 ![](https://latex.codecogs.com/svg.latex?0.1^2) 보다 작은 object들은 detail이 부족해 폐기했다. 
+- 모든 이미지들에 대해, track할 object를 랜덤으로 샘플링하고, 역시 같은 이미지에 대해 occluder patch들을 랜덤으로 뽑는다.
+- 그런 다음 object와 occluder의 움직임을 시뮬레이션한다. 
+  - 매 timestep마다 초기 속도, 방향, 종횡비를 Gaussian noise에 따라 수정한다. 
+- 이 데이터는 네트워크가 보는 object들의 다양성을 더해 준다. 
+  - 예로 "사람"과 같은 카테고리는 많은 tracking 데이터셋에서 흔하게 나오지만 Imagenet Video에는 존재하지 않는다. 
+
 #### Tracking at Test Time
 
+- Test-time prediction을 생성하기 위해 각 연속된 프레임들의 crop들을 network에 넣는다.
+- 매 32번의 iteration마다 LSTM state를 리셋한다. 
+  - 이는 필수적인데, 학습 과정에서 사용한 비디오들의 최대 길이가 32 프레임이었기 때문.
+  - 리셋을 하지 않으면 LSTM 파라미터들이 이전에 보지 못한 값으로 diverge한다. 
+- LSTM state들을 전부 0으로 리셋하는 대신 첫 forward pass의 ouput으로 리셋했다.
+  - 이 방법은 따라갈 object의 encoding을 유지하면서, training unroll의 수보다 훨씬 긴 비디오에서도 잘 작동하게 해 준다.
+- 또한 리셋은 모델이 위치를 제대로 잡지 못하고 있을 때 복구하는 데 도움을 준다.
+  - well-centered crop embedding을 다시 사용하게 되기 때문.
+
 #### Implementation Details
+
+- (생략)
+
+## 4. Experiments
+
+- 몇 유명한 tracking dataset들에서 전체적인 성능, occlusion에 대한 robustness를 다른 tracker들과 비교했다. 
+
+### A. VOT 2014 and 2016
+
+- 이 데이터셋의 많은 비디오들이 모양에서의 큰 변화, 강한 occlusion, 그리고 카메라 움직임과 같은 어려움을 포함하고 있다. 
+- 여기서 다른 tracker들과 accuracy (predicted box가 ground truth와 얼마나 잘 맞는지), robustness (얼마나 자주 tracker가 실패해서 reset되지 않는지) 를 비교했다. 
+
+![figure3](figure3.png)
+
+- Fig. 3은 각 연도에서 제출됐던 가장 빠른 tracker 10개와 가장 정확한 tracker 10개를 Re3와 비교한 것이다. 
+- Fig. 3의 왼쪽을 보면 Re3가 전체적으로 가장 정확한 편에 속하면서, real-time tracker들 중 robustness도 뛰어나다. 
+  - 이는 LSTM이 시간에 따른 변화를 직접적으로 모델링하면서도 연산적 오버헤드는 별로 없었기 때문인 것으로 보인다.
+- Fig. 3의 오른쪽은 좀 더 최근의 tracker들을, 더 어려운 VOT 2016 test set에서 비교한 것이다. 
+  - 여기에서 사용된 tracker는 ALOV 데이터를 완전히 빼고 학습시켰는데, 이는 두 비디오 셋 사이에 겹치는 부분이 너무 많았기 때문이다. 
+  - 이렇게 하지 않으면 성능이 떨어졌는데, 자세한 내용은 뒤의 abalation analysis 부분에.
+  - Re3은 C-COT와 같은 가장 좋은 방법들보다 450배나 빠르면서도 상대적 accuracy와 robustness는 각각 20%, 5%밖에 낮은 데 그쳤다. 
+- 두 데이터셋 모두에서 Re3은 speed, accuracy, robustness 사이의 trade-off 관계를 보였다. 
+  - 특히 time-critical하거나 연산량이 제한된 시나리오들에서. 
+
+### B. Imagenet Video
+
+### C. Online Object Tracking Benchmark
+
+### D. Robustness to Occlusion
+
+### E. Ablation Study
+
+### F. Qualitative Results
+
+## V. Conclusion
