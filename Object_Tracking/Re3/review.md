@@ -214,12 +214,70 @@
 
 ### B. Imagenet Video
 
+- Imagenet Video 데이터셋에서 평가할 때는 track에 실패하더라도 (lose track) tracker를 초기화시키지 않았다. 
+- 다양한 IOU threshold에 따른 성능을, 다른 real-time tracker들과 비교. 
+
+![](figure4.png)
+
+- Fig. 4를 보면 Re3가 다른 real-time method들에 비해 높은 성능을 냄을 확인할 수 있다. 
+  - Re3와 GOTURN + Imagenet은 Imagenet Video 데이터셋에서만 학습시켰음에도 불구하고. 
+- Re3를 Imagenet Video 데이터 없이 ALOV와 시뮬레이션 데이터로만 학습시켰을 때는 훨신 낮은 결과를 보였다. 
+  - LSTM의 학습에는 feed forward network들에 비해 더 많은 데이터가 필요한데, Imagenet Video를 뺌으로써 90%의 학습 데이터가 제거되었기 때문인 것 같다. 
+  - 충분한 데이터만 제공된다면, 같은 데이터에서 학습시킨 다른 method들을 뛰어넘는 성능을 보인다. 
+
 ### C. Online Object Tracking Benchmark
+
+- OTB에서, Imagenet Video에서의 평가 지표와 같은 지표인 OPE (One Pass Evaluation) 를 가지고 비교했다. 
+- 여기서는 ALOV 데이터를 빼고 학습시킨 네트워크를 사용했으며, 그럼에도 baseline들보다 좋은 결과를 냈다. 
+
+![figure6](figure6.png)
 
 ### D. Robustness to Occlusion
 
+- Occlusion에 대해서 얼마나 잘 작동하는지를 나타내는 두 개의 추가 실험을 진행했다. 
+- LSTM은 implicit하게 occlusion을 다루는 것을 학습할 수 있다. 
+  - 구조상, input과 forget gate를 통해 정보를 무시할 수 있기 때문. 
+  - 이는 모든 observation이 유용할 것이라고 가정하는 다른 방법들과는 대비되는 특성이다. 
+
+![figure5](figure5.png) 
+
+- Fig. 5는 영상 전체와, occlusion이 존재하는 동안의 expected overlap의 차이를 비교한 것이다. 
+- Re3은 훨씬 높은 frame rate를 보이면서도 다른 top performer들과 비슷한 성능을 낸다. 
+- 그리고 occlusion이 있을 때는 적은 성능 감소를 보여, 많은 tracker들보다 좋은 성능을 낸다. 
+  - 다른 많은 tracker들은 25% 이상의 성능 감소를 보인다. 
+- 또한 OTB에서도 occlusion이 있을 때와 없을 때를 비교했는데, 여기서도 다른 method들에 비해 정확도 감소가 더 적게 일어났다. 
+  - 이 결과는 위에 있는 fig. 6 의 오른쪽 그래프에. 
+- 즉, object tracking에서 가장 해결하기 어려운 문제인 occlusion에 대한 해법으로 우리의 LSTM 기반의 method가 사용될 수 있다. 
+
 ### E. Ablation Study
+
+![table1](table1.png)
+
+- Table 1은 Re3 network에 다양한 변화를 줬을 때의 속도와 성능 변화를 나타낸 것이다. 
+- 모델 A와 C의 차이점.
+  - 모델 A는 각각 4096개의 출력을 갖는 fc layer가 세 개 있지만, 
+  - 모델 C는 2048개의 출력을 갖는 fc layer가 한 개만 있고 1024개의 출력을 갖는 LSTM layer가 하나 있다. 
+- 이런 작은 차이에도 불구하고, 별도의 수정 없이 기존의 tracker에 학습 과정에서 LSTM을 추가하는 것만으로도 성능이 감소됐다.
+- 이전 실수들을 정정하고 drift를 막는 방법인 self-training를 C에다 더한 모델인 D번 모델을 보면, self-training이 필수적임을 볼 수 있다. 
+- 다른 수정본들에서는 속도를 조금 희생했더니 accuracy와 robustness 모두 올라가는 경향을 보였다. 
+- 모델 K는 image embedding에 GoogleNet을 이용했는데 두 배나 느려졌다. 
+- 모델 H는 Imagenet Video와 시뮬레이션 데이터만 가지고 학습시켰다.
+  - 고정된 클래스 셋에서 학습시켰더니 성능이 해당 클래스에 대해서는 올라가지만 나머지에 대해서는 크게 감소했다. 
+- 모델 I는 큰 학습 데이터셋을 사용하는 것이 높은 robustness 달성에 필수적임을 보여준다. 
+- 모델 J는 LSTM state reset이 parameter나 model drift보다 성능에 더 큰 부정적 영향을 줌을 확인시켜 준다.
 
 ### F. Qualitative Results
 
+- 모델이 보지 못한 object들에 대한 tracking도 잘 수행했다. 
+- ![](https://latex.codecogs.com/svg.latex?15{\times}20) 픽셀 정도의 작은 object들이 포함된 비디오에서도 작동했다.
+- [유튜브 영상](https://www.youtube.com/watch?v=RByCiOLlxug) 참조. 
+
+![figure7](figure7.png)
+
 ## V. Conclusion
+
+- 처음으로 generic object tracker를 RNN을 사용해서 구현했다. 
+- 많은 예제들을 offline으로 학습하고, 특정한 object를 따라갈 때는 빠르게 online update를 하는 강력한 방법.
+- 특히 occlusion이 있는 상황에서 accuracy, robustness, 그리고 speed를 높일 수 있었다. 
+- Labeled video와 합성 데이터로 recurrent network를 효율적이고 효과적으로 학습시키는 방법을 보였다.
+- RNN이 빠른 generic object tracking 분야에서 굉장한 잠재력이 있음을 보였고, 제한된 연산량으로도 실시간성을 달성해야 하는 로보틱스 분야에서 유익할 것으로 생각한다. 
