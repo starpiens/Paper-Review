@@ -1,4 +1,4 @@
-# [DRAFT] Re3: Real-Time Recurrent Regression Networks for Visual Tracking of Generic Objects
+# Re3: Real-Time Recurrent Regression Networks for Visual Tracking of Generic Objects
 
 ![](output.gif)
 
