@@ -1,15 +1,19 @@
-# Paper Review
-Computer vision paper review
+# [Paper Review](https://www.notion.so/Paper-Review-a32c3fc44b654651a168d5e24bb48a0c)
 
-## Object Detection 🕵️‍♂️
+Paper review, mainly computer vision.
 
-- [**Faster R-CNN.**](Object_Detection/Faster_R-CNN/review.md) [[paper]](http://papers.nips.cc/paper/5638-faster-r-cnn-towards-real-time-object-detection-with-region-proposal-networks.pdf)  
-  **Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks** (NIPS 2015), Ren, Shaoqing, et al.
+## Object Detection 🔍
 
-- [**YOLO.**](Object_Detection/YOLO/review.md) [[paper]](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Redmon_You_Only_Look_CVPR_2016_paper.pdf)  
-  **You only look once: Unified, real-time object detection.** (CVPR 2016), Redmon, Joseph, et al. 
+- [**Faster R-CNN.**](https://www.notion.so/Faster-R-CNN-7f3a7307d31b48e5ac7b703a3946b5fc)  
+  **Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks.** (NIPS 2015)
 
-## Object Tracking 🛤
+- [**YOLO.**](https://www.notion.so/YOLO-bd3adaeb3e7742a2ab2d65acf139f31f)  
+  **You only look once: Unified, real-time object detection.** (CVPR 2016)
 
-- [**Re3.**](Object_Tracking/Re3/review.md) [[paper]](http://arxiv.org/abs/1705.06368)  
-  **Re3 : Real-Time Recurrent Regression Networks for Visual Tracking of Generic Objects** (RA-L 2018), Gordon, Daniel, et al.
+## Object Tracking 🔭
+
+- [**Re3.**](https://www.notion.so/Re-3-e3319066fe0f4ee4a138d5adf4b5ac7e)  
+  **Re3: Real-Time Recurrent Regression Networks for Visual Tracking of Generic Objects.** (RA-L 2018)
+- [**SiamRPN.**](https://www.notion.so/SiamRPN-3af3f0b7c33049e9863e5b36ab75b38b)  
+  **High Performance Visual Tracking with Siamese Region Proposal Network.** (CVPR 2018)
+
