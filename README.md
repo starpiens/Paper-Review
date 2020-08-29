@@ -16,4 +16,7 @@ Paper review, mainly computer vision.
   **Re3: Real-Time Recurrent Regression Networks for Visual Tracking of Generic Objects.** (RA-L 2018)
 - [**SiamRPN.**](https://www.notion.so/SiamRPN-3af3f0b7c33049e9863e5b36ab75b38b)  
   **High Performance Visual Tracking with Siamese Region Proposal Network.** (CVPR 2018)
+- [**DaSiamRPN.**](https://www.notion.so/DaSiamRPN-0916a7310b594f6090aace44148a896e)  
+  **Distractor-aware Siamese Networks for Visual Object Tracking.** (ECCV 2018)
+
 
